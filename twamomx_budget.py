@@ -3,7 +3,6 @@ import numpy as np
 import importlib
 import xarray as xr
 import pandas as pd
-import string
 importlib.reload(pym6)
 
 
@@ -15,7 +14,7 @@ def get_h(fil1, fil2, **initializer):
         a = h.values
         a[a < htol] = np.nan
         h.values = a
-        return h
+    return h
 
 
 def get_ur(fil1, fil2, **initializer):
@@ -24,7 +23,7 @@ def get_ur(fil1, fil2, **initializer):
     with pym6.Dataset(fil2, **initializer) as ds2:
         ur = ds2.uh.read().nanmean(axis=0).divide_by('dyCu') / h
         ur = ur.compute()
-        return ur
+    return ur
 
 
 def get_advx(fil1, fil2, **initializer):
@@ -37,14 +36,13 @@ def get_advx(fil1, fil2, **initializer):
         a = h_forx.values
         a[a < htol] = np.nan
         h_forx.values = a
-        urx = ds2.uh.xsm().xep().read().nanmean(
-            axis=0).divide_by('dyCu') / h_forx
-        urx = urx.dbyd(3).move_to('u').compute()
+        urx = ds2.uh.xsm().xep().read().nanmean(axis=0) / h_forx
+        urx = urx.dbyd(3, weights='area').move_to('u').compute()
         advx = (-urx * ur).compute()
-        advx.name = 'Zonal advection'
-        advx.math = r'$-\hat{u}\hat{u}_{\tilde{x}}$'
-        advx.units = r'ms$^{-2}$'
-        return advx
+    advx.name = 'Zonal advection'
+    advx.math = r'$-\hat{u}\hat{u}_{\tilde{x}}$'
+    advx.units = r'ms$^{-2}$'
+    return advx
 
 
 def get_advy(fil1, fil2, **initializer):
@@ -57,16 +55,15 @@ def get_advy(fil1, fil2, **initializer):
         a = h_fory.values
         a[a < htol] = np.nan
         h_fory.values = a
-        ury = ds2.uh.ysm().yep().read().nanmean(
-            axis=0).divide_by('dyCu') / h_fory
-        ury = ury.dbyd(2).move_to('u').compute()
+        ury = ds2.uh.ysm().yep().read().nanmean(axis=0) / h_fory
+        ury = ury.dbyd(2, weights='area').move_to('u').compute()
         hvm = ds2.vh.ysm().xep().read().nanmean(
             axis=0).divide_by('dxCv').move_to('h').move_to('u').compute()
         advy = (-hvm * ury / h).compute()
-        advy.name = 'Meridional advection'
-        advy.math = r'$-\hat{v}\hat{u}_{\tilde{y}}$'
-        advy.units = r'ms$^{-2}$'
-        return advy
+    advy.name = 'Meridional advection'
+    advy.math = r'$-\hat{v}\hat{u}_{\tilde{y}}$'
+    advy.units = r'ms$^{-2}$'
+    return advy
 
 
 def get_advb(fil1, fil2, **initializer):
@@ -81,14 +78,14 @@ def get_advb(fil1, fil2, **initializer):
         h_forb.values = a
         urb = ds2.uh.zsm().zep().read().nanmean(axis=0) / h_forb
         urb = urb.divide_by('dyCu').dbyd(1).move_to('l').compute()
-        db = np.diff(ds2.zl)[0] * 9.8 / 1031
+        db = np.diff(ds2.zl)[0] * 9.8 / 1000
         hwm = ds2.wd.xep().zep().read().nanmean(
             axis=0).move_to('l').move_to('u') * db
         advb = (-hwm * urb / h).compute()
-        advb.name = 'Vertical advection'
-        advb.math = r'$-\hat{\varpi}\hat{u}_{\tilde{b}}$'
-        advb.units = r'ms$^{-2}$'
-        return advb
+    advb.name = 'Vertical advection'
+    advb.math = r'$-\hat{\varpi}\hat{u}_{\tilde{b}}$'
+    advb.units = r'ms$^{-2}$'
+    return advb
 
 
 def get_cor(fil1, fil2, **initializer):
@@ -97,10 +94,10 @@ def get_cor(fil1, fil2, **initializer):
     with pym6.Dataset(fil1, **initializer) as ds1:
         hfvm = ds1.twa_hfv.read().nanmean(axis=0).compute()
         cor = (hfvm / h).compute()
-        cor.name = 'Coriolis force'
-        cor.math = r'$f\hat{v}$'
-        cor.units = r'ms$^{-2}$'
-        return cor
+    cor.name = 'Coriolis force'
+    cor.math = r'$f\hat{v}$'
+    cor.units = r'ms$^{-2}$'
+    return cor
 
 
 def get_pfum(fil1, fil2, **initializer):
@@ -110,20 +107,20 @@ def get_pfum(fil1, fil2, **initializer):
         pfum = ds2.PFu.read().nanmean(axis=0).compute()
         pfum = h * pfum / h
         pfum = pfum.compute()
-        pfum.name = 'Grad of Montg Pot'
-        pfum.math = r'$-\bar{m}_{\tilde{x}}$'
-        pfum.units = r'ms$^{-2}$'
-        return pfum
+    pfum.name = 'Grad of Montg Pot'
+    pfum.math = r'$-\bar{m}_{\tilde{x}}$'
+    pfum.units = r'ms$^{-2}$'
+    return pfum
 
 
 def get_xdivep1(fil1, fil2, **initializer):
     initializer['final_loc'] = 'ul'
     h = get_h(fil1, fil2, **initializer)
     with pym6.Dataset(fil1, **initializer) as ds1:
-        huuxm = ds1.huu_Cu.xsm().xep().read().divide_by('dyCu').dbyd(
-            3).nanmean(axis=0).move_to('u').compute()
+        huuxm = ds1.huu_Cu.xsm().xep().read().dbyd(
+            3, weights='area').nanmean(axis=0).move_to('u').compute()
         xdivep1 = (-huuxm / h).compute()
-        return xdivep1
+    return xdivep1
 
 
 def get_xdivep3(fil1, fil2, **initializer):
@@ -131,10 +128,10 @@ def get_xdivep3(fil1, fil2, **initializer):
     ur = get_ur(fil1, fil2, **initializer)
     h = get_h(fil1, fil2, **initializer)
     with pym6.Dataset(fil2, **initializer) as ds2:
-        humx = ds2.uh.xsm().xep().read().nanmean(
-            axis=0).divide_by('dyCu').dbyd(3).move_to('u').compute()
+        humx = ds2.uh.xsm().xep().read().nanmean(axis=0).dbyd(
+            3, weights='area').move_to('u').compute()
         xdivep3 = (humx * ur / h).compute()
-        return xdivep3
+    return xdivep3
 
 
 def get_edlsqmx(fil1, fil2, **initializer):
@@ -146,7 +143,7 @@ def get_edlsqmx(fil1, fil2, **initializer):
         e = e.compute(check_loc=False)
         edlsqmx = esq - e
         edlsqmx = edlsqmx.dbyd(3).compute()
-        return edlsqmx
+    return edlsqmx
 
 
 def get_xdivep4(fil1, fil2, **initializer):
@@ -154,9 +151,12 @@ def get_xdivep4(fil1, fil2, **initializer):
     edlsqmx = get_edlsqmx(fil1, fil2, **initializer)
     h = get_h(fil1, fil2, **initializer)
     with pym6.Dataset(fil1, **initializer) as ds1:
-        db = -np.diff(ds1.zl)[0] * 9.8 / 1031
-        xdivep4 = (-0.5 * edlsqmx * db / h).compute()
-        return xdivep4
+        db = np.diff(ds1.zl)[0] * 9.8 / 1000
+        xdivep4 = ((-0.5 * db * edlsqmx).compute() / h).compute()
+        xdivep4.math = (r"""-$\frac{1}{2\bar{\sigma}}"""
+                        r"""(\bar{\zeta ^{\prime 2}})_{\tilde{x}}$""")
+    xdivep4.units = r'ms$^{-2}$'
+    return xdivep4
 
 
 def get_xdivep(fil1, fil2, **initializer):
@@ -164,8 +164,7 @@ def get_xdivep(fil1, fil2, **initializer):
     xdivep2 = -get_advx(fil1, fil2, **initializer)
     xdivep3 = get_xdivep3(fil1, fil2, **initializer)
     xdivep4 = get_xdivep4(fil1, fil2, **initializer)
-    xdivep = ((xdivep1 + xdivep2).compute() +
-              (xdivep3 + xdivep4).compute()).compute()
+    xdivep = (xdivep1 + xdivep2.compute() + xdivep3 + xdivep4).compute()
     xdivep.name = 'Div of zonal EP flux'
     xdivep.math = (
         r"""-$\frac{1}{\bar{\sigma}}(\bar{\sigma}"""
@@ -176,6 +175,19 @@ def get_xdivep(fil1, fil2, **initializer):
     return xdivep
 
 
+def get_xdivRS(fil1, fil2, **initializer):
+    xdivep1 = get_xdivep1(fil1, fil2, **initializer)
+    xdivep2 = -get_advx(fil1, fil2, **initializer)
+    xdivep3 = get_xdivep3(fil1, fil2, **initializer)
+    xdivRS = (xdivep1 + xdivep2.compute() + xdivep3).compute()
+    xdivRS.name = 'Zonal grad RS'
+    xdivRS.math = (
+        r"""-$\frac{1}{\bar{\sigma}}(\bar{\sigma}"""
+        r"""\widehat{u ^{\prime \prime} u ^{\prime \prime} })_{\tilde{x}}$""")
+    xdivRS.units = r'ms$^{-2}$'
+    return xdivRS
+
+
 def get_ydivep1(fil1, fil2, **initializer):
     initializer['final_loc'] = 'ul'
     h = get_h(fil1, fil2, **initializer)
@@ -184,11 +196,11 @@ def get_ydivep1(fil1, fil2, **initializer):
         huvymt = ds1.twa_huvymt.read().nanmean(axis=0).compute()
         huuxphuvym = huuxpt + huvymt
         huuxphuvym = huuxphuvym.compute()
-        huuxm = ds1.huu_Cu.xsm().xep().read().divide_by('dyCu').dbyd(
-            3).nanmean(axis=0).move_to('u').compute()
+        huuxm = ds1.huu_Cu.xsm().xep().read().dbyd(
+            3, weights='area').nanmean(axis=0).move_to('u').compute()
         huvym = huuxphuvym + huuxm
         ydivep1 = (huvym / h).compute()
-        return ydivep1
+    return ydivep1
 
 
 def get_ydivep3(fil1, fil2, **initializer):
@@ -196,17 +208,17 @@ def get_ydivep3(fil1, fil2, **initializer):
     ur = get_ur(fil1, fil2, **initializer)
     h = get_h(fil1, fil2, **initializer)
     with pym6.Dataset(fil2, **initializer) as ds2:
-        hvmy = ds2.vh.ysm().xep().read().nanmean(
-            axis=0).divide_by('dxCv').dbyd(2).move_to('u').compute()
+        hvmy = ds2.vh.ysm().xep().read().nanmean(axis=0).dbyd(
+            2, weights='area').move_to('u').compute()
         ydivep3 = (hvmy * ur / h).compute()
-        return ydivep3
+    return ydivep3
 
 
 def get_ydivep(fil1, fil2, **initializer):
     ydivep1 = get_ydivep1(fil1, fil2, **initializer)
     ydivep2 = -get_advy(fil1, fil2, **initializer)
     ydivep3 = get_ydivep3(fil1, fil2, **initializer)
-    ydivep = (ydivep1 + ydivep2 + ydivep3).compute()
+    ydivep = (ydivep1 + ydivep2.compute() + ydivep3).compute()
     ydivep.name = 'Div of merid EP flux'
     ydivep.math = (r"""-$\frac{1}{\bar{\sigma}}"""
                    r"""(\bar{\sigma}\widehat{u ^{\prime \prime} """
@@ -221,7 +233,7 @@ def get_bdivep1(fil1, fil2, **initializer):
     with pym6.Dataset(fil1, **initializer) as ds1:
         huwbm = ds1.twa_huwb.read().nanmean(axis=0).compute()
         bdivep1 = (huwbm / h).compute()
-        return bdivep1
+    return bdivep1
 
 
 def get_bdivep3(fil1, fil2, **initializer):
@@ -232,7 +244,7 @@ def get_bdivep3(fil1, fil2, **initializer):
         hwb = ds2.wd.xep().zep().read().nanmean(axis=0).move_to('u').np_ops(
             np.diff, axis=1, sets_vloc='l').compute()
         bdivep3 = (hwb * ur / h).compute()
-        return bdivep3
+    return bdivep3
 
 
 def get_bdivep4(fil1, fil2, **initializer):
@@ -243,11 +255,16 @@ def get_bdivep4(fil1, fil2, **initializer):
             fil2, **initializer) as ds2:
         hpfu = ds1.twa_hpfu.read().nanmean(axis=0).compute()
         pfum = ds2.PFu.read().nanmean(axis=0).compute()
-        db = -np.diff(ds1.zl)[0] * 9.8 / 1031
-        edpfudmb = -(-hpfu + (h * pfum).compute() -
+        db = np.diff(ds1.zl)[0] * 9.8 / 1000
+        edpfudmb = -((-hpfu).compute() + (h * pfum).compute() -
                      (edlsqmx * db * 0.5).compute()) / h
         bdivep4 = edpfudmb.compute()
-        return bdivep4
+    bdivep4.name = 'Form drag'
+    bdivep4.math = (r""" -$\frac{1}{2\bar{\sigma}}"""
+                    r"""(\overline{\zeta ^\prime m_{\tilde{x}}^\prime})"""
+                    r"""_{\tilde{b}}$""")
+    bdivep4.units = r'ms$^{-2}$'
+    return bdivep4
 
 
 def get_bdivep(fil1, fil2, **initializer):
@@ -255,8 +272,8 @@ def get_bdivep(fil1, fil2, **initializer):
     bdivep2 = -get_advb(fil1, fil2, **initializer)
     bdivep3 = get_bdivep3(fil1, fil2, **initializer)
     bdivep4 = get_bdivep4(fil1, fil2, **initializer)
-    bdivep = (bdivep1 + bdivep2 + bdivep3 + bdivep4).compute()
-    bdivep.name = 'Form Drag'
+    bdivep = (bdivep1 + bdivep2.compute() + bdivep3 + bdivep4).compute()
+    bdivep.name = 'Vert div of EP flux'
     bdivep.math = (r"""-$\frac{1}{\bar{\sigma}}(\bar{\sigma}"""
                    r"""\widehat{u ^{\prime \prime} """
                    r"""\varpi ^{\prime \prime}})_{\tilde{b}}$"""
@@ -267,16 +284,30 @@ def get_bdivep(fil1, fil2, **initializer):
     return bdivep
 
 
+def get_bdivRS(fil1, fil2, **initializer):
+    bdivep1 = get_bdivep1(fil1, fil2, **initializer)
+    bdivep2 = -get_advb(fil1, fil2, **initializer)
+    bdivep3 = get_bdivep3(fil1, fil2, **initializer)
+    bdivep4 = get_bdivep4(fil1, fil2, **initializer)
+    bdivRS = (bdivep1 + bdivep2 + bdivep3 + bdivep4).compute()
+    bdivRS.name = 'Form Drag'
+    bdivRS.math = (r"""-$\frac{1}{\bar{\sigma}}(\bar{\sigma}"""
+                   r"""\widehat{u ^{\prime \prime} """
+                   r"""\varpi ^{\prime \prime}})_{\tilde{b}}$""")
+    bdivRS.units = r'ms$^{-2}$'
+    return bdivRS
+
+
 def get_X1twa(fil1, fil2, **initializer):
     initializer['final_loc'] = 'ul'
     h = get_h(fil1, fil2, **initializer)
     with pym6.Dataset(fil1, **initializer) as ds1:
         hdiffum = ds1.twa_hdiffu.read().nanmean(axis=0).compute()
         X1twa = (hdiffum / h).compute()
-        X1twa.name = 'Horizontal diffusion'
+        X1twa.name = 'Horizontal friction'
         X1twa.math = r'$\widehat{X^H}$'
         X1twa.units = r'ms$^{-2}$'
-        return X1twa
+    return X1twa
 
 
 def get_X2twa(fil1, fil2, **initializer):
@@ -288,7 +319,7 @@ def get_X2twa(fil1, fil2, **initializer):
         X2twa.name = 'Vertical viscous forces'
         X2twa.math = r'$\widehat{X^V}$'
         X2twa.units = r'ms$^{-2}$'
-        return X2twa
+    return X2twa
 
 
 def get_BxplusPVflux(fil1, fil2, **initializer):
@@ -310,9 +341,8 @@ def get_PV(fil1, fil2, **initializer):
         a = h_fory.values
         a[a < htol] = np.nan
         h_fory.values = a
-        ury = ds2.uh.ysm().yep().read().nanmean(
-            axis=0).divide_by('dyCu') / h_fory
-        ury = ury.dbyd(2)
+        ury = ds2.uh.ysm().yep().read().nanmean(axis=0) / h_fory
+        ury = ury.dbyd(2, weights='area')
         f_slice = ury.get_slice_2D()._slice_2D
         ury = ury.move_to('u').compute()
         h_forx = ds1.h_Cv.xep().ysm().read().nanmean(axis=0).compute(
@@ -320,14 +350,13 @@ def get_PV(fil1, fil2, **initializer):
         a = h_forx.values
         a[a < htol] = np.nan
         h_forx.values = a
-        vrx = ds2.vh.xep().ysm().read().nanmean(
-            axis=0).divide_by('dxCv') / h_forx
-        vrx = vrx.dbyd(3).move_to('u').compute()
+        vrx = ds2.vh.xep().ysm().read().nanmean(axis=0) / h_forx
+        vrx = vrx.dbyd(3, weights='area').move_to('u').compute()
         f = initializer['geometry'].f[f_slice]
         f = 0.5 * (f[:-1] + f[1:])
         PV = ((vrx - ury + f) / h).compute()
         PV.name = r'PV$^\sharp$'
-        return PV
+    return PV
 
 
 def get_PVflux(fil1, fil2, **initializer):
@@ -340,7 +369,7 @@ def get_PVflux(fil1, fil2, **initializer):
         PVflux.name = 'PV flux'
         PVflux.math = r'$\bar{\sigma}\hat{v}\Pi^{\sharp}$'
         PVflux.units = r'ms$^{-2}$'
-        return PVflux
+    return PVflux
 
 
 def get_Bx(fil1, fil2, **initializer):
@@ -365,6 +394,11 @@ def extract_twamomx_terms(fil1, fil2, **initializer):
         get_X1twa, get_X2twa
     ]
 
+    forPV_list = [
+        get_PVflux, get_advb, get_Bx, get_xdivRS, get_ydivep, get_bdivRS,
+        get_X1twa, get_X2twa, get_xdivep4, get_bdivep4
+    ]
+
     only = initializer.get('only', range(len(conventional_list)))
     type = initializer.get('type', 'conventional')
     if 'type' in initializer:
@@ -380,10 +414,14 @@ def extract_twamomx_terms(fil1, fil2, **initializer):
         for i, func in enumerate(withPVflux_list):
             if i in only:
                 return_list.append(func(fil1, fil2, **initializer))
+    elif type == 'forPV':
+        for i, func in enumerate(forPV_list):
+            if i in only:
+                return_list.append(func(fil1, fil2, **initializer))
     return return_list
 
 
-def extract_budget(fil1, fil2, **initializer):
+def extract_budget(fil1, fil2, fil3=None, **initializer):
     meanax = initializer.get('meanax', 2)
     initializer.pop('meanax')
     z = initializer.get('z', None)
@@ -391,8 +429,27 @@ def extract_budget(fil1, fil2, **initializer):
         initializer.pop('z')
     initializer['final_loc'] = 'ui'
     with pym6.Dataset(fil2, **initializer) as ds:
-        e = ds.e.xep().zep().read().nanmean(axis=(0, 2)).move_to('u').compute()
+        e = ds.e.xep().zep().read().move_to('u').nanmean(axis=(0, 2)).compute()
     initializer['final_loc'] = 'ul'
+    if fil3 is not None:
+        with pym6.Dataset(fil3) as ds:
+            islaydeepmax = ds.islayerdeep.read().compute(check_loc=False).array
+            islaydeepmax = islaydeepmax[0, 0, 0, 0]
+        with pym6.Dataset(
+                fil3, fillvalue=np.nan, **initializer) as ds, pym6.Dataset(
+                    fil1, **initializer) as ds2:
+            swash = ds.islayerdeep
+            uv = ds2.uv
+            swash.indices = uv.indices
+            swash.dim_arrays = uv.dim_arrays
+            swash = swash.ysm().read().move_to('u').nanmean(
+                axis=(0, 2)).compute()
+            swash = ((-swash + islaydeepmax) / islaydeepmax * 100).compute()
+            if z is not None:
+                swash = swash.toz(z, e)
+            swash = swash.tokm(3).to_DataArray()
+    else:
+        swash = None
     blist = extract_twamomx_terms(fil1, fil2, **initializer)
     namelist = []
     for i, b in enumerate(blist):
@@ -400,35 +457,10 @@ def extract_budget(fil1, fil2, **initializer):
         b = b.nanmean(axis=meanax)
         if z is not None:
             b = b.toz(z, e)
-        blist[i] = b.to_DataArray()
+        blist[i] = b.tokm(3).to_DataArray()
     blist_concat = xr.concat(blist, dim=pd.Index(namelist, name='Term'))
     blist_concat.name = 'Zonal Momentum Budget'
-    return blist_concat, blist
-
-
-def plot_budget(fil1, fil2, **initializer):
-    blist_concat, blist = extract_budget(fil1, fil2, **initializer)
-    fg = blist_concat.plot.imshow(
-        'xq',
-        'z',
-        size=2,
-        aspect=(1 + np.sqrt(5)) / 2,
-        yincrease=True,
-        vmin=-7e-5,
-        vmax=7e-5,
-        cmap='RdBu_r',
-        col='Term',
-        col_wrap=2)
-    for i, ax in enumerate(fg.axes.flat):
-        ax.set_title('(' + string.ascii_lowercase[i] + ') ' + blist[i].name)
-        ax.text(-0.45, -1000, blist[i].attrs['math'], fontsize=15)
-    fg.cbar.formatter.set_powerlimits((0, 0))
-    fg.cbar.update_ticks()
-    return fg
-
-
-if __name__ == '__main__':
-    import sys
-    fil = sys.argv[1]
-    initializer = dict(sys.argv[2])
-    extract_twamomx_terms(fil, initializer)
+    e = e.tokm(3).to_DataArray()
+    return_dict = dict(
+        blist_concat=blist_concat, blist=blist, e=e, swash=swash)
+    return return_dict
