@@ -164,3 +164,23 @@ class ExperimentsList():
         fig = ax.get_figure()
         fig.autofmt_xdate()
         return fig
+
+
+control = Experiment(r'Control','./',38,47,z1=-200,z2=-1300,ylimsp=(26,55),ylimsm=(25,52))
+decdt = Experiment(r'$\Delta$T = 8$^{\circ}$C','../bfb3_fixed_sponge_decdt/',
+           66,72,z1=-200,z2=-1100,
+           ylimsp=(28,50),ylimsm=(30,50))
+incdt = Experiment(r'$\Delta$T = 12$^{\circ}$C','../bfb3_fixed_sponge_incdt/',
+           55,61,z1=-200,z2=-1300,
+           ylimsp=(25,55),ylimsm=(25,52),percp=2)
+deckd = Experiment('KD = 5e-5','../bfb3_fixed_sponge_deckd/',
+           43,49,z1=-200,z2=-1300)
+decdeckd = Experiment('KD = 2.5e-5','../bfb3_fixed_sponge_decdeckd/',
+               57,64,z1=-200,z2=-1300)
+incdepth = Experiment('incdepth','../bfb3_fixed_sponge_lowNsq/',32,40,z1=-200,z2=-1300)
+decdepth = Experiment('decdepth','../bfb3_fixed_sponge_highNsq/',33,40,z1=-200,z2=-1100)
+fplane = Experiment('f-plane','../bfb3_fixed_sponge_fplane/',84,90,z1=-200,z2=-1300)
+lowflc = Experiment('Flux Const = 1','../bfb3_fixed_sponge_lowflc/',
+               61,68,z1=-150,z2=-1300)
+wind1 = Experiment(r'$\tau^Y = -0.1$','../bfb3_fixed_sponge_wind_high/',118,127,z1=-200,z2=-1400,ylimsm=(25,40))
+wind2 = Experiment(r'$\tau^Y = -0.5$','../bfb3_fixed_sponge_wind_veryhigh/',133,142,z1=-400,z2=-1300,ylimsm=(25,50),ylimsp=(25,50))
