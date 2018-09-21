@@ -68,7 +68,7 @@ def MoverturnSF(expt):
     with pym6.Dataset(expt.fil2) as ds:
         moc = ds.vh.read().nanmean(axis=0).reduce_(np.sum, axis=3).compute()
         moc.array = np.cumsum(moc.values, axis=1)
-        moc = moc.tob(axis=1).to_DataArray()
+        moc = moc.tob(axis=1).to_DataArray().squeeze()
     return moc / 1e6
 
 
@@ -76,7 +76,7 @@ def ZoverturnSF(expt):
     with pym6.Dataset(expt.fil2) as ds:
         zoc = ds.uh.read().nanmean(axis=0).reduce_(np.sum, axis=2).compute()
         zoc.array = np.cumsum(zoc.values, axis=1)
-        zoc = zoc.tob(axis=1).to_DataArray()
+        zoc = zoc.tob(axis=1).to_DataArray().squeeze()
     return zoc / 1e6
 
 
@@ -92,7 +92,10 @@ def overturnSwash(expt, axis=3):
 
 def plot_merid_transport(exps, **initializer):
     """Plots meridional transport at the EB as a function of y"""
-    fig, ax = plt.subplots(2, 1, sharex=True, figsize=(8, 8))
+    figsize = initializer.get('figsize', (6, 6))
+    if 'figsize' in initializer:
+        initializer.pop('figsize')
+    fig, ax = plt.subplots(2, 1, sharex=True, figsize=figsize)
     fig = exps.plot1d(
         get_ntrans,
         np.greater_equal,
@@ -105,6 +108,7 @@ def plot_merid_transport(exps, **initializer):
     for axc in ax:
         axc.set_title('')
         axc.grid()
+    ax[0].set_xlabel('')
     ax[1].legend(loc='best')
     ax[1].set_xlabel('Latitude')
     return fig
@@ -136,9 +140,12 @@ def plot_merid_transport_1d(exps, **initializer2):
     return fig
 
 
-def plot_current_zc_depth(exps):
+def plot_current_zc_depth(exps, **initializer):
     """Plots meridional variation of depth of zero-crossing of meridional velocity"""
-    fig, ax = plt.subplots(1, 1, figsize=(8, 4))
+    figsize = initializer.get('figsize', (6, 3))
+    if 'figsize' in initializer:
+        initializer.pop('figsize')
+    fig, ax = plt.subplots(1, 1, figsize=figsize)
     fig = exps.plot1d(get_node_depth_v, N=100, ax=ax, **initializer)
     ax.legend(loc='best')
     ax.set_xlim(25, 45)
@@ -147,9 +154,12 @@ def plot_current_zc_depth(exps):
     return fig
 
 
-def plot_current_zc_depth_1d(exps):
+def plot_current_zc_depth_1d(exps, **initializer2):
     """Plots depth of zero-crossing of meridional velocity averaged between 34 and 38N"""
-    fig, ax = plt.subplots(1, 1, figsize=(4, 2))
+    figsize = initializer2.get('figsize', (6, 3))
+    if 'figsize' in initializer2:
+        initializer2.pop('figsize')
+    fig, ax = plt.subplots(1, 1, figsize=figsize)
     fig = exps.plotpoint(
         get_node_depth_v,
         mean_axes=(0, 2, 3),
@@ -162,10 +172,10 @@ def plot_current_zc_depth_1d(exps):
     return fig
 
 
-def plot_merid_overtsf(exps):
+def plot_merid_overtsf(exps, figsize=(8, 3)):
     """Plots meridional overturning SF along isopycnals"""
     fig, ax = plt.subplots(
-        1, len(exps.list_), sharex=True, sharey=True, figsize=(14, 3))
+        1, len(exps.list_), sharex=True, sharey=True, figsize=figsize)
     fig = exps.plot2d(
         MoverturnSF,
         plot_kwargs=dict(
@@ -177,11 +187,12 @@ def plot_merid_overtsf(exps):
         ctr_kwargs=dict(
             colors='k',
             yincrease=True,
+            add_colorbar=False,
             levels=np.array([-0.5, -0.25, -0.1, 0.25, 0.5, 1, 1.5, 2]) * 1e1),
         contours=True,
         fig=fig)
-    fig.tight_layout()
-    cbar = fig.colorbar(fig.axes[0].collections[0], ax=fig.axes)
+    #fig.tight_layout()
+    #cbar = fig.colorbar(fig.axes[0].collections[0], ax=fig.axes)
     fig = exps.plot2d(
         overturnSwash,
         contourf=False,
@@ -196,10 +207,10 @@ def plot_merid_overtsf(exps):
     return fig
 
 
-def plot_zonal_overtsf(exps):
+def plot_zonal_overtsf(exps, figsize=(10, 4)):
     """Plots zonal overturning SF along isopycnals"""
     fig, ax = plt.subplots(
-        1, len(exps.list_), sharex=True, sharey=True, figsize=(14, 3))
+        1, len(exps.list_), sharex=True, sharey=True, figsize=figsize)
     fig = exps.plot2d(
         ZoverturnSF,
         plot_kwargs=dict(
@@ -214,17 +225,31 @@ def plot_zonal_overtsf(exps):
             levels=np.array([-0.5, -0.25, -0.1, 0.25, 0.5, 1, 1.5, 2]) * 1e1),
         contours=True,
         fig=fig)
-    fig.tight_layout()
-    cbar = fig.colorbar(fig.axes[0].collections[0], ax=fig.axes)
-    fig = exps.plot2d(
-        overturnSwash,
-        contourf=False,
-        contours=True,
-        ctr_kwargs=dict(levels=[1], colors='g', yincrease=True),
-        axis=2,
-        fig=fig)
+    #fig.tight_layout()
+    #cbar = fig.colorbar(fig.axes[0].collections[0], ax=fig.axes)
+    #fig = exps.plot2d(
+    #    overturnSwash,
+    #    contourf=False,
+    #    contours=True,
+    #    ctr_kwargs=dict(levels=[1], colors='g', yincrease=True),
+    #    axis=2,
+    #    fig=fig)
     for axc in ax:
         axc.set_ylabel('')
         axc.set_xlabel('Longitude')
     ax[0].set_ylabel(r'b (ms$^{-2}$)')
+    return fig
+
+
+def transport_scaling(expt):
+    psi = MoverturnSF(expt).max() * 1e6
+    return psi * expt.fn / expt.dt**3
+
+
+def plot_transport_scaling(exps):
+    """Plots scaling of transport"""
+    fig, ax = plt.subplots(1, 1, figsize=(6, 3))
+    fig = exps.plotpoint(
+        transport_scaling, ax=ax, plot_kwargs=dict(marker='*'))
+    ax.set_ylabel(r'$\psi/\Delta T ^3$')
     return fig

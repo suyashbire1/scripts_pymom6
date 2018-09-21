@@ -21,10 +21,12 @@ class Experiment():
                  end_year,
                  z1=None,
                  z2=None,
+                 yn=50,
                  ylimsp=(25, 55),
                  ylimsm=(25, 55),
                  percp=15,
-                 percm=15):
+                 percm=15,
+                 dt=10):
         """Defines a MOM6 experiment
 
         :param name: Name of the experiment. This will appear on the
@@ -36,12 +38,14 @@ class Experiment():
         z2)
         :param z2: z2 (Depth of the change of current direction is
         checked between z1 and z2)
+        :param yn: Northernmost outcrop location (degrees)
         :param ylimsp: Meridional limits between which northward
         current is checked
         :param ylimsm: Meridional limits between which southward
         current is checked
         :param percp: Percentile for northward current
         :param percm: Percentile for southward current
+        :param dt: Imposed temperature gradient at the surface
         :returns: Experiment class
         :rtype: Experiment
 
@@ -49,18 +53,18 @@ class Experiment():
         self.name = name
         self.path = path
         self.fil0 = [
-            self.path + f'output__{n:04}.nc'
+            self.path + 'output__{:04}.nc'.format(n)
             for n in range(start_year, end_year + 1)
         ]
         self.fil1 = [
-            self.path + f'twaoutput__{n:04}.nc'
+            self.path + 'twaoutput__{:04}.nc'.format(n)
             for n in range(start_year, end_year + 1)
         ]
         self.fil2 = [
-            self.path + f'avg_output__{n:04}.nc'
+            self.path + 'avg_output__{:04}.nc'.format(n)
             for n in range(start_year, end_year + 1)
         ]
-        self.fil3 = self.path + f'twainstoutput__{end_year:04}.nc'
+        self.fil3 = self.path + 'twainstoutput__{:04}.nc'.format(end_year)
         self.geometry = pym6.GridGeometry(self.path + './ocean_geometry.nc')
         self.z1 = z1
         self.z2 = z2
@@ -68,6 +72,9 @@ class Experiment():
         self.ylimsm = ylimsm
         self.percp = percp
         self.percm = percm
+        self.dt = dt
+        omega = 2 * np.pi * (1 / 24 / 3600 + 1 / 24 / 3600 / 365)
+        self.fn = 2 * omega * np.sin(np.radians(yn))
 
 
 class ExperimentsList():
@@ -79,7 +86,7 @@ class ExperimentsList():
     def plot2d(self,
                func,
                *func_args,
-               contourf=False,
+               contourf=True,
                contours=False,
                fig=None,
                plot_kwargs={},
@@ -108,14 +115,12 @@ class ExperimentsList():
         for exp, axc in zip(self.list_, ax[:len(self.list_)]):
             arg = func(exp, *func_args, **func_kwargs)
             if contourf:
-                im = arg.plot.contourf(ax=axc, **plot_kwargs)
-            else:
-                im = arg.plot(ax=axc, **plot_kwargs)
+                im = arg.plot.pcolormesh(ax=axc, **plot_kwargs)
             if contours:
                 arg.squeeze().plot.contour(
                     ax=axc, add_labels=False, **ctr_kwargs)
             axc.set_title(exp.name)
-        if plot_kwargs.get('add_colorbar', True) is False:
+        if contourf and plot_kwargs.get('add_colorbar', True) is False:
             fig.colorbar(im, ax=ax)
         return fig
 
@@ -166,21 +171,70 @@ class ExperimentsList():
         return fig
 
 
-control = Experiment(r'Control','./',38,47,z1=-200,z2=-1300,ylimsp=(26,55),ylimsm=(25,52))
-decdt = Experiment(r'$\Delta$T = 8$^{\circ}$C','../bfb3_fixed_sponge_decdt/',
-           66,72,z1=-200,z2=-1100,
-           ylimsp=(28,50),ylimsm=(30,50))
-incdt = Experiment(r'$\Delta$T = 12$^{\circ}$C','../bfb3_fixed_sponge_incdt/',
-           55,61,z1=-200,z2=-1300,
-           ylimsp=(25,55),ylimsm=(25,52),percp=2)
-deckd = Experiment('KD = 5e-5','../bfb3_fixed_sponge_deckd/',
-           43,49,z1=-200,z2=-1300)
-decdeckd = Experiment('KD = 2.5e-5','../bfb3_fixed_sponge_decdeckd/',
-               57,64,z1=-200,z2=-1300)
-incdepth = Experiment('incdepth','../bfb3_fixed_sponge_lowNsq/',32,40,z1=-200,z2=-1300)
-decdepth = Experiment('decdepth','../bfb3_fixed_sponge_highNsq/',33,40,z1=-200,z2=-1100)
-fplane = Experiment('f-plane','../bfb3_fixed_sponge_fplane/',84,90,z1=-200,z2=-1300)
-lowflc = Experiment('Flux Const = 1','../bfb3_fixed_sponge_lowflc/',
-               61,68,z1=-150,z2=-1300)
-wind1 = Experiment(r'$\tau^Y = -0.1$','../bfb3_fixed_sponge_wind_high/',118,127,z1=-200,z2=-1400,ylimsm=(25,40))
-wind2 = Experiment(r'$\tau^Y = -0.5$','../bfb3_fixed_sponge_wind_veryhigh/',133,142,z1=-400,z2=-1300,ylimsm=(25,50),ylimsp=(25,50))
+control = Experiment(
+    r'Control',
+    './',
+    38,
+    47,
+    yn=50,
+    z1=-200,
+    z2=-1300,
+    ylimsp=(26, 55),
+    ylimsm=(25, 52))
+decdt = Experiment(
+    r'$\Delta$T = 8$^{\circ}$C',
+    '../bfb3_fixed_sponge_decdt/',
+    66,
+    72,
+    yn=45,
+    z1=-200,
+    z2=-1100,
+    ylimsp=(28, 50),
+    ylimsm=(30, 50),
+    dt=8)
+incdt = Experiment(
+    r'$\Delta$T = 12$^{\circ}$C',
+    '../bfb3_fixed_sponge_incdt/',
+    55,
+    61,
+    yn=55,
+    z1=-200,
+    z2=-1300,
+    ylimsp=(25, 55),
+    ylimsm=(25, 52),
+    percp=2,
+    dt=12)
+deckd = Experiment(
+    'KD = 5e-5', '../bfb3_fixed_sponge_deckd/', 43, 49, z1=-200, z2=-1300)
+decdeckd = Experiment(
+    'KD = 2.5e-5', '../bfb3_fixed_sponge_decdeckd/', 57, 64, z1=-200, z2=-1300)
+incdepth = Experiment(
+    'incdepth', '../bfb3_fixed_sponge_lowNsq/', 32, 40, z1=-200, z2=-1300)
+decdepth = Experiment(
+    'decdepth', '../bfb3_fixed_sponge_highNsq/', 33, 40, z1=-200, z2=-1100)
+fplane = Experiment(
+    'f-plane', '../bfb3_fixed_sponge_fplane/', 84, 90, z1=-200, z2=-1300)
+lowflc = Experiment(
+    'Flux Const = 1',
+    '../bfb3_fixed_sponge_lowflc/',
+    61,
+    68,
+    z1=-150,
+    z2=-1300)
+wind1 = Experiment(
+    r'$\tau^Y = -0.1$',
+    '../bfb3_fixed_sponge_wind_high/',
+    118,
+    127,
+    z1=-200,
+    z2=-1400,
+    ylimsm=(25, 40))
+wind2 = Experiment(
+    r'$\tau^Y = -0.5$',
+    '../bfb3_fixed_sponge_wind_veryhigh/',
+    133,
+    142,
+    z1=-400,
+    z2=-1300,
+    ylimsm=(25, 50),
+    ylimsp=(25, 50))
