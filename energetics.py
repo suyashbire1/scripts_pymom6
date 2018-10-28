@@ -38,8 +38,8 @@ def eke(fil1, fil2, **kwargs):
         ur = (ur / h).compute(check_loc=False)
         ur.values[h.values < htol] = 0
         ur = ur.divide_by('dyCu').compute(check_loc=False)
-        ueke = (huu -
-                (uh * ur).compute(check_loc=False)).move_to('h').compute()
+        ueke = (
+            huu - (uh * ur).compute(check_loc=False)).move_to('h').compute()
 
         hvv = ds1.hvv_Cv.ysm().read().nanmean(
             axis=0).divide_by('dxCv').compute(check_loc=False)
@@ -50,12 +50,42 @@ def eke(fil1, fil2, **kwargs):
         vr = (vr / h).compute(check_loc=False)
         vr.values[h.values < htol] = 0
         vr = vr.divide_by('dxCv').compute(check_loc=False)
-        veke = (hvv -
-                (vh * vr).compute(check_loc=False)).move_to('h').compute()
+        veke = (
+            hvv - (vh * vr).compute(check_loc=False)).move_to('h').compute()
 
         eke = (0.5 * (ueke + veke)).compute()
     eke.name = r'EKE (m$^3$s$^{-2}$)'
     return eke
+
+
+def mape(fil1, fil2):
+    htol = kwargs.get('htol', 1e-10)
+    with pym6.Dataset(fil1) as ds1, pym6.Dataset(fil2) as ds2:
+        db = np.diff(ds1.zl)[0] * 9.8 / 1000
+        e = ds2.e.final_loc('hl').zep().read().nanmean(
+            axis=0).move_to('h').compute()
+        espatialmean = ds2.e.final_loc('hl').zep().read().nanmean(
+            axis=(0, 2, 3)).movw_to('h').compute()
+        mape = ((e * e).compute().nanmean(axis=(2, 3)).compute() -
+                (espatialmean**2).compute()).compute()
+        mape = (mape * db).compute()
+    mape.name = r'MAPE (m$^3$s$^{-2}$)'
+    return mape
+
+
+def eape(fil1, fil2, **kwargs):
+    htol = kwargs.get('htol', 1e-10)
+    mape = mape(fil1, fil2, **kwargs)
+    with pym6.Dataset(fil1, **kwargs) as ds1, pym6.Dataset(fil2,
+                                                           **kwargs) as ds2:
+        db = np.diff(ds1.zl)[0] * 9.8 / 1000
+        esqm = ds1.esq.read().nanmean(axis=0).compute()
+        emsq = ds2.e.final_loc('hl').zep().read().nanmean(
+            axis=0).move_to('l')**2
+        emsq = e.compute()
+        eape = ((esqm - emsq) * db).compute()
+    eape.name = r'EAPE (m$^3$s$^{-2}$)'
+    return eape
 
 
 def sigum(fil0, **kwargs):
