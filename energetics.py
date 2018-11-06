@@ -68,22 +68,22 @@ def mape(fil1, fil2):
             axis=(0, 2, 3)).movw_to('h').compute()
         mape = ((e * e).compute().nanmean(axis=(2, 3)).compute() -
                 (espatialmean**2).compute()).compute()
-        mape = (mape * db).compute()
+        mape = (mape * db * 0.5).compute()
     mape.name = r'MAPE (m$^3$s$^{-2}$)'
     return mape
 
 
 def eape(fil1, fil2, **kwargs):
     htol = kwargs.get('htol', 1e-10)
-    mape = mape(fil1, fil2, **kwargs)
+    # meanape = mape(fil1, fil2, **kwargs)
     with pym6.Dataset(fil1, **kwargs) as ds1, pym6.Dataset(fil2,
                                                            **kwargs) as ds2:
         db = np.diff(ds1.zl)[0] * 9.8 / 1000
         esqm = ds1.esq.read().nanmean(axis=0).compute()
         emsq = ds2.e.final_loc('hl').zep().read().nanmean(
             axis=0).move_to('l')**2
-        emsq = e.compute()
-        eape = ((esqm - emsq) * db).compute()
+        emsq = emsq.compute()
+        eape = ((esqm - emsq) * db * 0.5).compute()
     eape.name = r'EAPE (m$^3$s$^{-2}$)'
     return eape
 

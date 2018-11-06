@@ -2,6 +2,8 @@ import numpy as np
 from scipy.optimize import curve_fit
 import twamomy_budget as ty
 import energetics as ee
+import importlib
+importlib.reload(ee)
 import pymom6.pymom6 as pym6
 
 
@@ -201,7 +203,7 @@ def plot_kappa_with_eke(expt,
     return np.array(xp), ke, popt
 
 
-def profile_eke_sig_zxzy(eke, sig, zx, zy, xew=None):
+def profile_eke_sig_zxzy(eke, epe, sig, zx, zy, xew=None):
     """Returns zonal profile of eke, sigma, z_x, and z_y at bin centers
 
     :param eke: eke
@@ -215,25 +217,73 @@ def profile_eke_sig_zxzy(eke, sig, zx, zy, xew=None):
     """
     if xew is None:
         xew = default_xew()
-    ekep, sigp, zxp, zyp = [], [], [], []
+    ekep, epep, sigp, zxp, zyp = [], [], [], [], []
     for i in range(xew.size - 1):
         ekesub = eke.sel(xh=slice(xew[i], xew[i + 1])).mean().values
+        epesub = epe.sel(xh=slice(xew[i], xew[i + 1])).mean().values
         sigsub = sig.sel(xh=slice(xew[i], xew[i + 1])).mean().values
         zxsub = zx.sel(xh=slice(xew[i], xew[i + 1])).mean().values
         zysub = zy.sel(xh=slice(xew[i], xew[i + 1])).mean().values
         ekep.append(ekesub)
+        epep.append(epesub)
         sigp.append(sigsub)
         zxp.append(zxsub)
         zyp.append(zysub)
-    return ekep, sigp, zxp, zyp
+    return ekep, epep, sigp, zxp, zyp
+
+
+def profile_zxzy(zx, zy, xew=None):
+    """Returns zonal profile of eke, sigma, z_x, and z_y at bin centers
+
+    :param zx: zx
+    :param zy: zy
+    :param xew: edges of the bins
+    :returns: tuple of z_x and z_y at bin centers
+    :rtype: tuple
+
+    """
+    if xew is None:
+        xew = default_xew()
+    zxp, zyp = [], []
+    for i in range(xew.size - 1):
+        zxsub = zx.sel(xh=slice(xew[i], xew[i + 1])).mean().values
+        zysub = zy.sel(xh=slice(xew[i], xew[i + 1])).mean().values
+        zxp.append(zxsub)
+        zyp.append(zysub)
+    return zxp, zyp
+
+
+def profile_eke_msqn(eke, epe, msq_n, xew=None):
+    """Returns zonal profile of eke, epe, and msq_n at bin centers
+
+    :param eke: eke
+    :param epe: epe
+    :param msq_n: msq_n
+    :param xew: edges of the bins
+    :returns: tuple of eke, epe, and msq_n at bin centers
+    :rtype: tuple
+
+    """
+    if xew is None:
+        xew = default_xew()
+    ekep, epep, msq_np = [], [], []
+    for i in range(xew.size - 1):
+        ekesub = eke.sel(xh=slice(xew[i], xew[i + 1])).mean().values
+        epesub = epe.sel(xh=slice(xew[i], xew[i + 1])).mean().values
+        msqnsub = msq_n.sel(xh=slice(xew[i], xew[i + 1])).mean().values
+        ekep.append(ekesub)
+        epep.append(epesub)
+        msq_np.append(msqnsub)
+    return ekep, epep, msq_np
 
 
 def get_sigma(fil1, fil2, **initializer):
     with pym6.Dataset(fil2, **initializer) as ds, pym6.Dataset(
             fil1, **initializer) as ds1:
+        db = np.diff(ds1.zl)[0] * 9.8 / 1000
         h = ds1.h_Cv.read().nanmean(axis=(0, 2)).to_DataArray()
         h.values[h.values < initializer['htol']] = 0
-    return h.mean('zl')
+    return h / db
 
 
 def get_zxzy(fil1, fil2, **initializer):
@@ -243,7 +293,7 @@ def get_zxzy(fil1, fil2, **initializer):
             'h').move_to('l').nanmean(axis=(0, 2)).to_DataArray()
         ey = ds.e.final_loc('hl').zep().yep().ysm().read().dbyd(2).move_to(
             'h').move_to('l').nanmean(axis=(0, 2)).to_DataArray()
-    return (ex**2).mean('zl'), (ey**2).mean('zl')
+    return ex**2, ey**2
 
 
 def plot_kappa_with_geometric(expt,
@@ -269,19 +319,31 @@ def plot_kappa_with_geometric(expt,
     sigfd = sigfd.nanmean(axis=2).compute()
     eke = ee.eke(expt.fil1, expt.fil2, final_loc='hl', **initializer)
     eke = (eke.nanmean(axis=2).to_DataArray().sum('zl') / 3000)  #**0.5
+    epe = ee.eape(expt.fil1, expt.fil2, **initializer)
+    epe = (epe.nanmean(axis=2).to_DataArray().sum('zl') / 3000)  #**0.5
     sigma = get_sigma(expt.fil1, expt.fil2, **initializer)
-    zx, zy = get_zxzy(expt.fil1, expt.fil2, **initializer)
+    zxsq, zysq = get_zxzy(expt.fil1, expt.fil2, **initializer)
+    msq_n = np.sqrt((zxsq + zysq) / sigma)
     h, hx = get_hx(expt.fil1, expt.fil2, **initializer)
     sigfd.values[h.values < initializer['htol']] = 0
+    msq_n.values[h.values < initializer['htol']] = 0
+    msq_n = msq_n.sum('zl') / 3000
+    sigma = sigma.sum('zl') / 3000
+    zxsq = zxsq.sum('zl') / 3000
+    zysq = zysq.sum('zl') / 3000
     if xew is None:
         xew = default_xew()
     xp, ke, keerr = profile_ke(
         hx.to_DataArray(), sigfd.to_DataArray(), xew=xew)
-    ekep, sigp, zxp, zyp = profile_eke_sig_zxzy(eke, sigma, zx, zy, xew=xew)
+    ekep, epep, sigp, zxp, zyp = profile_eke_sig_zxzy(
+        eke, epe, sigma, zxsq, zysq, xew=xew)
+    # ekep, epep, msq_np = profile_eke_msqn(eke, epe, msq_n, xew=xew)
+    # zxp, zyp = profile_zxzy(zxsq, zysq, xew=xew)
     ke = -np.array(ke) / f
     keerr = -np.array(keerr) / f
-    predictor = np.array(ekep) * np.array(sigp)**0.5 / np.sqrt(
-        np.array(zxp) + np.array(zyp))
+    # predictor = (np.array(ekep) + np.array(epep)) / (np.array(msq_np))
+    predictor = (np.array(ekep) + np.array(epep)) * np.array(
+        sigp)**0.5 / np.sqrt(np.array(zxp) + np.array(zyp))
 
     popt, _ = curve_fit(slope, predictor, ke)
     kefit = slope(predictor, *popt)
@@ -291,12 +353,15 @@ def plot_kappa_with_geometric(expt,
     ax.set_xlabel(r'x ($^{\circ}$)')
     ax.grid()
     ax1.plot(xp, ekep, label=expt.name, color=col)
-    ax1.set_ylabel(r'EKE (m$^2$s$^{-2}$)')
+    ax1.plot(xp, epep, label=expt.name, color=col, linestyle='--')
+    ax1.set_ylabel(r'EE (m$^2$s$^{-2}$)')
     ax1.set_xlabel(r'x ($^{\circ}$)')
     ax1.grid()
     ax2.plot(xp, zxp, label=expt.name, color=col, linestyle='-')
-    ax2.plot(xp, zyp, color=col, linestyle='--')
-    ax2.set_ylabel(r'$\zeta_x, \zeta_y$')
+    # ax2.plot(xp, zyp, color=col, linestyle='--')
+    # ax2.set_ylabel(r'$\zeta_x, \zeta_y$')
+    # ax2.plot(xp, msq_np, label=expt.name, color=col, linestyle='-')
+    ax2.set_ylabel(r'$\frac{M^2}{N}$')
     ax2.set_xlabel(r'x ($^{\circ}$)')
     ax2.grid()
     return np.array(xp), ke, popt

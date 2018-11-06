@@ -105,8 +105,8 @@ def get_pfum(fil1, fil2, **initializer):
     h = get_h(fil1, fil2, **initializer)
     with pym6.Dataset(fil2, **initializer) as ds2:
         pfum = ds2.PFu.read().nanmean(axis=0).compute()
-        pfum = h * pfum / h
-        pfum = pfum.compute()
+        # pfum = h * pfum / h
+        # pfum = pfum.compute()
     pfum.name = 'Grad of Montg Pot'
     pfum.math = r'$-\bar{m}_{\tilde{x}}$'
     pfum.units = r'ms$^{-2}$'
@@ -464,3 +464,38 @@ def extract_budget(fil1, fil2, fil3=None, **initializer):
     return_dict = dict(
         blist_concat=blist_concat, blist=blist, e=e, swash=swash)
     return return_dict
+
+
+def extract_momx_terms(fil1, fil2, **initializer):
+
+    with pym6.Dataset(fil2, **initializer) as ds2:
+        cau = ds2.CAu.read().nanmean(axis=0).compute()
+        cau.name = 'Coriolis term'
+        cau.math = r'$-f\bar{v}$'
+
+        pfu = ds2.PFu.read().nanmean(axis=0).compute()
+        pfu.name = 'Grad Mont Pot'
+        pfu.math = r'$-\bar{m_{\tilde{x}}}$'
+
+        dudt_dia = ds2.dudt_dia.read().nanmean(axis=0).compute()
+        dudt_dia.name = 'Diapycnal advection'
+        dudt_dia.math = r'$-\bar{\varpi} \bar{u}_{\tilde{b}}$'
+
+        dudt_visc = ds2.du_dt_visc.read().nanmean(axis=0).compute()
+        diffu = ds2.diffu.read().nanmean(axis=0).compute()
+        diffu = (diffu + dudt_visc).compute()
+        diffu.name = 'Friction terms'
+        diffu.math = r'$\bar{X}$'
+
+    conventional_list = [cau, pfu, dudt_dia, diffu]
+
+    only = initializer.get('only', range(len(conventional_list)))
+    if 'only' in initializer:
+        return_list = []
+        initializer.pop('only')
+        for i, term in enumerate(conventional_list):
+            if i in only:
+                return_list.append(term)
+    else:
+        return_list = conventional_list
+    return return_list

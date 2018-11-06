@@ -26,7 +26,10 @@ class Experiment():
                  ylimsm=(25, 55),
                  percp=15,
                  percm=15,
-                 dt=10):
+                 dt=10,
+                 tsurf=20,
+                 tbot=5,
+                 dabyss=1500):
         """Defines a MOM6 experiment
 
         :param name: Name of the experiment. This will appear on the
@@ -72,7 +75,10 @@ class Experiment():
         self.ylimsm = ylimsm
         self.percp = percp
         self.percm = percm
+        alpha = 2e-3
         self.dt = dt
+        self.db = alpha * self.dt
+        self.nsq = alpha * (tsurf - tbot) / dabyss
         omega = 2 * np.pi * (1 / 24 / 3600 + 1 / 24 / 3600 / 365)
         self.fn = 2 * omega * np.sin(np.radians(yn))
 
@@ -238,3 +244,15 @@ wind2 = Experiment(
     z2=-1300,
     ylimsm=(25, 50),
     ylimsp=(25, 50))
+lownsq = Experiment(
+    r'$N^2 = 1.87\times 10^{-5}\,$s$^{-2}$',
+    '../bfb3_fixed_sponge_highTbot/',
+    91,
+    97,
+    tbot=6)
+highnsq = Experiment(
+    r'$N^2 = 2.13\times 10^{-5}\,$s$^{-2}$',
+    '../bfb3_fixed_sponge_lowTbot/',
+    86,
+    92,
+    tbot=4)
