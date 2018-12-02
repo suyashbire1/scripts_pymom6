@@ -16,11 +16,13 @@ def get_zonal_zeta_adv(fil1, **initializer):
         uzx = ((u * zx).move_to('h').toz(z, e) / nt).compute()
         uzx.name = 'Zonal height adv'
         uzx.math = r'$\hat{u}\bar{\zeta}_{\tilde{x}}$'
+        print('Getting uzx')
         for i in range(1, nt):
-            u = ds1.u.xsm().isel(t=slice(i, i +
-                                         1)).read().compute(check_loc=False)
-            zx = ds1.e.zep().xsm().xep().isel(t=slice(i, i + 1)).read().dbyd(
-                3).move_to('l').compute(check_loc=False)
+            u = ds1.u.xsm().isel(t=slice(i, i + 1)).read().compute(
+                check_loc=False)
+            zx = ds1.e.zep().xsm().xep().isel(
+                t=slice(i, i + 1)).read().dbyd(3).move_to('l').compute(
+                    check_loc=False)
             e = ds1.e.final_loc('hi').isel(t=slice(i, i + 1)).read().compute()
             uzx.values += (u * zx).move_to('h').toz(z, e).compute().values / nt
     return uzx
@@ -38,11 +40,13 @@ def get_merid_zeta_adv(fil1, **initializer):
         vzy = ((v * zy).move_to('h').toz(z, e) / nt).compute()
         vzy.name = 'Merid height adv'
         vzy.math = r'$\hat{v}\bar{\zeta}_{\tilde{y}}$'
+        print('Getting vzy')
         for i in range(1, nt):
-            v = ds1.v.ysm().isel(t=slice(i, i +
-                                         1)).read().compute(check_loc=False)
-            zy = ds1.e.zep().ysm().yep().isel(t=slice(i, i + 1)).read().dbyd(
-                2).move_to('l').compute(check_loc=False)
+            v = ds1.v.ysm().isel(t=slice(i, i + 1)).read().compute(
+                check_loc=False)
+            zy = ds1.e.zep().ysm().yep().isel(
+                t=slice(i, i + 1)).read().dbyd(2).move_to('l').compute(
+                    check_loc=False)
             e = ds1.e.final_loc('hi').isel(t=slice(i, i + 1)).read().compute()
             vzy.values += (
                 (v * zy).move_to('h').toz(z, e) / nt).compute().values
@@ -86,15 +90,17 @@ def get_velocities(fil1, **initializer):
              nt).compute(check_loc=False)
         u.name = 'Mean zonal vel'
         u.math = r'$\bar{u}^z$'
+        print('Getting u, v...')
         for i in range(1, nt):
             e = ds1.e.final_loc('hi').isel(t=slice(i, i + 1)).read().compute()
-            v.values += (
-                ds1.v.ysm().isel(t=slice(i, i + 1)).read().move_to('h').toz(
-                    z, e) / nt).compute(check_loc=False).values
-            u.values += (
-                ds1.u.xsm().isel(t=slice(i, i + 1)).read().move_to('h').toz(
-                    z, e) / nt).compute(check_loc=False).values
+            v.values += (ds1.v.ysm().isel(
+                t=slice(i, i + 1)).read().move_to('h').toz(z, e) / nt).compute(
+                    check_loc=False).values
+            u.values += (ds1.u.xsm().isel(
+                t=slice(i, i + 1)).read().move_to('h').toz(z, e) / nt).compute(
+                    check_loc=False).values
 
+        print('Getting w...')
         w = get_w(fil1, **initializer)
 
     ret_dict = dict(v=v, u=u, w=w)

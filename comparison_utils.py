@@ -2,12 +2,17 @@ import numpy as np
 import xarray as xr
 import pymom6.pymom6 as pym6
 import matplotlib.pyplot as plt
-import twamomy_budget as ty
-import twamomx_budget as tx
+import moc as ty
+import zoc as tx
+import zoc_from_vmom as zb
+import moc_from_umom as mb
 import pandas as pd
 import importlib
 importlib.reload(ty)
 importlib.reload(tx)
+importlib.reload(zb)
+importlib.reload(mb)
+importlib.reload(pym6)
 
 
 def rolling_mean(array, n):
@@ -86,31 +91,107 @@ def ZoverturnSF(expt):
     return zoc / 1e6
 
 
-def ZonalSectionofMeridMomBudget(expt, **initializer):
-    z = initializer.get('z', None)
-    if 'z' in initializer:
-        initializer.pop('z')
-    initializer['final_loc'] = 'vi'
-    with pym6.Dataset(expt.fil2, **initializer) as ds:
-        e = ds.e.yep().zep().read().move_to('v').nanmean(axis=(0, 2)).compute()
-    initializer['final_loc'] = 'vl'
-    blist = ty.extract_twamomy_terms(expt.fil1, expt.fil2, **initializer)
-
-    namelist = []
-    for i, b in enumerate(blist):
-        namelist.append(b.name)
-        b = b.reduce_(np.sum, axis=2)
-        if z is not None:
-            b = b.toz(z, e)
-        blist[i] = b.to_DataArray()
-    blist_concat = xr.concat(blist, dim=pd.Index(namelist, name='Term'))
-    blist_concat.name = 'Merid momentum budget'
-    e = e.to_DataArray()
-    return_dict = dict(blist_concat=blist_concat, blist=blist, e=e, swash=None)
-    return return_dict
+def MoverturnSFmean(expt):
+    with pym6.Dataset(
+            expt.fil2,
+            geometry=expt.geometry) as ds, pym6.Dataset(expt.fil1) as ds1:
+        moc = ds.v.read().nanmean(axis=0).multiply_by('dxCv')
+        h = ds1.h_Cv.read().nanmean(axis=0).compute()
+        moc = (moc * h).reduce_(np.sum, axis=3).compute()
+        moc.array = np.cumsum(moc.values, axis=1)
+        moc = moc.tob(axis=1).to_DataArray().squeeze()
+    return moc / 1e6
 
 
-def ZonalSectionofZonalMomBudget(expt, **initializer):
+def ZoverturnSFmean(expt):
+    with pym6.Dataset(
+            expt.fil2,
+            geometry=expt.geometry) as ds, pym6.Dataset(expt.fil1) as ds1:
+        zoc = ds.u.read().nanmean(axis=0).multiply_by('dyCu')
+        h = ds1.h_Cu.read().nanmean(axis=0).compute()
+        zoc = (zoc * h).reduce_(np.sum, axis=2).compute()
+        zoc.array = np.cumsum(zoc.values, axis=1)
+        zoc = zoc.tob(axis=1).to_DataArray().squeeze()
+    return zoc / 1e6
+
+
+def MoverturnSFeddy(expt):
+    mocres = MoverturnSF(expt)
+    mocmean = MoverturnSFmean(expt)
+    return mocres - mocmean
+
+
+def ZoverturnSFeddy(expt):
+    zocres = ZoverturnSF(expt)
+    zocmean = ZoverturnSFmean(expt)
+    return zocres - zocmean
+
+
+def MoverturnSFstanding(expt):
+    with pym6.Dataset(
+            expt.fil2,
+            geometry=expt.geometry) as ds, pym6.Dataset(expt.fil1) as ds1:
+        v = ds.v.read().nanmean(axis=0).compute()
+        v.values = v.values - np.mean(v.values, axis=3, keepdims=True)
+        v = v.multiply_by('dxCv')
+        h = ds1.h_Cv.read().nanmean(axis=0).compute()
+        h.values = h.values - np.mean(h.values, axis=3, keepdims=True)
+        moc = (v * h).reduce_(np.sum, axis=3).compute()
+        moc.array = np.cumsum(moc.values, axis=1)
+        moc = moc.tob(axis=1).to_DataArray().squeeze()
+    return moc / 1e6
+
+
+def MoverturnSFtmeanzmean(expt):
+    with pym6.Dataset(
+            expt.fil2,
+            geometry=expt.geometry) as ds, pym6.Dataset(expt.fil1) as ds1:
+        v = ds.v.read().nanmean(axis=0).compute()
+        v.values = np.repeat(
+            np.mean(v.values, axis=3, keepdims=True), v.shape[3], axis=3)
+        v = v.multiply_by('dxCv')
+        h = ds1.h_Cv.read().nanmean(axis=0).compute()
+        h.values = np.repeat(
+            np.mean(h.values, axis=3, keepdims=True), h.shape[3], axis=3)
+        moc = (v * h).reduce_(np.sum, axis=3).compute()
+        moc.array = np.cumsum(moc.values, axis=1)
+        moc = moc.tob(axis=1).to_DataArray().squeeze()
+    return moc / 1e6
+
+
+def ZoverturnSFstanding(expt):
+    with pym6.Dataset(
+            expt.fil2,
+            geometry=expt.geometry) as ds, pym6.Dataset(expt.fil1) as ds1:
+        u = ds.u.read().nanmean(axis=0).compute()
+        u.values = u.values - np.mean(u.values, axis=2, keepdims=True)
+        u = u.multiply_by('dyCu')
+        h = ds1.h_Cu.read().nanmean(axis=0).compute()
+        h.values = h.values - np.mean(h.values, axis=2, keepdims=True)
+        zoc = (u * h).reduce_(np.sum, axis=2).compute()
+        zoc.array = np.cumsum(zoc.values, axis=1)
+        zoc = zoc.tob(axis=1).to_DataArray().squeeze()
+    return zoc / 1e6
+
+
+def ZoverturnSFtmeanzmean(expt):
+    with pym6.Dataset(
+            expt.fil2,
+            geometry=expt.geometry) as ds, pym6.Dataset(expt.fil1) as ds1:
+        u = ds.u.read().nanmean(axis=0).compute()
+        u.values = np.repeat(
+            np.mean(u.values, axis=2, keepdims=True), u.shape[2], axis=2)
+        u = u.multiply_by('dyCu')
+        h = ds1.h_Cu.read().nanmean(axis=0).compute()
+        h.values = np.repeat(
+            np.mean(h.values, axis=2, keepdims=True), h.shape[2], axis=2)
+        zoc = (u * h).reduce_(np.sum, axis=2).compute()
+        zoc.array = np.cumsum(zoc.values, axis=1)
+        zoc = zoc.tob(axis=1).to_DataArray().squeeze()
+    return zoc / 1e6
+
+
+def ZonalSectionofZOCbudget(expt, **initializer):
     z = initializer.get('z', None)
     if 'z' in initializer:
         initializer.pop('z')
@@ -123,15 +204,124 @@ def ZonalSectionofZonalMomBudget(expt, **initializer):
     namelist = []
     for i, b in enumerate(blist):
         namelist.append(b.name)
-        b = b.reduce_(np.sum, axis=2)
+        #b = b.reduce_(np.sum, axis=2)
         if z is not None:
             b = b.toz(z, e)
+        else:
+            b.values = np.cumsum(b.values, axis=1)
+            b = b.tob(axis=1)
+            e = e.tob(axis=1)
         blist[i] = b.to_DataArray()
     blist_concat = xr.concat(blist, dim=pd.Index(namelist, name='Term'))
     blist_concat.name = 'Zonal momentum budget'
     e = e.to_DataArray()
     return_dict = dict(blist_concat=blist_concat, blist=blist, e=e, swash=None)
     return return_dict
+
+
+def ZonalSectionofZOCcomponents(expt, **initializer):
+    z = initializer.get('z', None)
+    if 'z' in initializer:
+        initializer.pop('z')
+    initializer['final_loc'] = 'vi'
+    with pym6.Dataset(expt.fil2, **initializer) as ds:
+        e = ds.e.yep().zep().read().move_to('v').nanmean(axis=(0, 2)).compute()
+    initializer['final_loc'] = 'vl'
+    blist = zb.extract_twamomy_terms(expt.fil1, expt.fil2, **initializer)
+
+    namelist = []
+    for i, b in enumerate(blist):
+        namelist.append(b.name)
+        #b = b.reduce_(np.sum, axis=2)
+        if z is not None:
+            b = b.toz(z, e)
+        else:
+            b.values = np.cumsum(b.values, axis=1)
+            b = b.tob(axis=1)
+            e = e.tob(axis=1)
+        blist[i] = b.to_DataArray()
+    blist_concat = xr.concat(blist, dim=pd.Index(namelist, name='Term'))
+    blist_concat.name = 'Zonal OC budget'
+    e = e.to_DataArray()
+    return_dict = dict(blist_concat=blist_concat, blist=blist, e=e, swash=None)
+    return return_dict
+
+
+def ZonalSectionofZOCbudgetfdrel(expt, **initializer):
+    blist = zb.extract_twamomy_terms(
+        expt.fil1, expt.fil2, only=[3, 6], **initializer)
+    for b in blist:
+        b.values = np.cumsum(b.values, axis=1)
+    fd_zoc = (blist[1] / blist[0]).compute()
+    fd_zoc = fd_zoc.tob(axis=1).to_DataArray()
+    return fd_zoc.squeeze()
+
+
+def MeridSectionofMOCbudget(expt, **initializer):
+    z = initializer.get('z', None)
+    if 'z' in initializer:
+        initializer.pop('z')
+    initializer['final_loc'] = 'vi'
+    with pym6.Dataset(expt.fil2, **initializer) as ds:
+        e = ds.e.yep().zep().read().move_to('v').nanmean(axis=(0, 3)).compute()
+    initializer['final_loc'] = 'vl'
+    blist = ty.extract_twamomy_terms(expt.fil1, expt.fil2, **initializer)
+
+    namelist = []
+    for i, b in enumerate(blist):
+        namelist.append(b.name)
+        # b = b.reduce_(np.sum, axis=3)
+        if z is not None:
+            b = b.toz(z, e)
+        else:
+            b.values = np.cumsum(b.values, axis=1)
+            b = b.tob(axis=1)
+            e = e.tob(axis=1)
+        blist[i] = b.to_DataArray()
+    blist_concat = xr.concat(blist, dim=pd.Index(namelist, name='Term'))
+    blist_concat.name = 'Merid momentum budget'
+    e = e.to_DataArray()
+    return_dict = dict(blist_concat=blist_concat, blist=blist, e=e, swash=None)
+    return return_dict
+
+
+def MeridSectionofMOCcomponents(expt, **initializer):
+    z = initializer.get('z', None)
+    if 'z' in initializer:
+        initializer.pop('z')
+    initializer['final_loc'] = 'ui'
+    with pym6.Dataset(expt.fil2, **initializer) as ds:
+        e = ds.e.xep().zep().read().move_to('u').nanmean(axis=(0, 3)).compute()
+    initializer['final_loc'] = 'ul'
+    blist = mb.extract_twamomx_terms(expt.fil1, expt.fil2, **initializer)
+
+    namelist = []
+    for i, b in enumerate(blist):
+        namelist.append(b.name)
+        #b = b.reduce_(np.sum, axis=2)
+        if z is not None:
+            b = b.toz(z, e)
+        else:
+            b.values = np.cumsum(b.values, axis=1)
+            b = b.tob(axis=1)
+        blist[i] = (-b).to_DataArray()
+    blist_concat = xr.concat(blist, dim=pd.Index(namelist, name='Term'))
+    blist_concat.name = 'Merid OC budget'
+    if z is None:
+        e = e.tob(axis=1)
+    e = e.to_DataArray()
+    return_dict = dict(blist_concat=blist_concat, blist=blist, e=e, swash=None)
+    return return_dict
+
+
+def MeridSectionofMOCbudgetfdrel(expt, **initializer):
+    blist = mb.extract_twamomx_terms(
+        expt.fil1, expt.fil2, only=[3, 6], **initializer)
+    for b in blist:
+        b.values = np.cumsum(b.values, axis=1)
+    fd_zoc = (blist[1] / blist[0]).compute()
+    fd_zoc = fd_zoc.tob(axis=1).to_DataArray()
+    return fd_zoc.squeeze()
 
 
 def ZonalSectionofZonalconvMomBudget(expt, **initializer):

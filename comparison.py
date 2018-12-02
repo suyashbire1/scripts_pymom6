@@ -59,6 +59,8 @@ class Experiment():
             self.path + 'output__{:04}.nc'.format(n)
             for n in range(start_year, end_year + 1)
         ]
+        # self.fil0 = self.path + 'output__{:04}.nc'.format(start_year)
+
         self.fil1 = [
             self.path + 'twaoutput__{:04}.nc'.format(n)
             for n in range(start_year, end_year + 1)
@@ -67,6 +69,7 @@ class Experiment():
             self.path + 'avg_output__{:04}.nc'.format(n)
             for n in range(start_year, end_year + 1)
         ]
+        # self.fil2 = self.path + 'avg_output__{:04}.nc'.format(start_year)
         self.fil3 = self.path + 'twainstoutput__{:04}.nc'.format(end_year)
         self.geometry = pym6.GridGeometry(self.path + './ocean_geometry.nc')
         self.z1 = z1
@@ -249,6 +252,7 @@ lownsq = Experiment(
     '../bfb3_fixed_sponge_highTbot/',
     91,
     97,
+    yn=57,
     tbot=6)
 highnsq = Experiment(
     r'$N^2 = 2.13\times 10^{-5}\,$s$^{-2}$',

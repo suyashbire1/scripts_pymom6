@@ -1,5 +1,6 @@
 import string
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 def plot_budget(func_or_dict, fil1, fil2, **initializer):
@@ -13,6 +14,8 @@ def plot_budget(func_or_dict, fil1, fil2, **initializer):
     texty = initializer.get('texty', 0.1)
     fontsize = initializer.get('fontsize', 15)
     eskip = initializer.get('eskip', 2)
+    elevs = initializer.get(
+        'elevs', [-2500, -1500, -1000, -800, -500, -300, -200, -100, -50, 0])
     toz = initializer.get('toz', True)
     interpolation = initializer.get('interpolation', 'none')
     if callable(func_or_dict):
@@ -21,7 +24,9 @@ def plot_budget(func_or_dict, fil1, fil2, **initializer):
         returned_dict = func_or_dict
     blist_concat = returned_dict['blist_concat']
     blist = returned_dict['blist']
-    e = returned_dict['e'].squeeze()
+    e = returned_dict['e']
+    if e is not None:
+        e = e.squeeze()
     PV = returned_dict.get('PV', None)
     swash = returned_dict.get('swash')
     if PV is not None:
@@ -56,8 +61,18 @@ def plot_budget(func_or_dict, fil1, fil2, **initializer):
             transform=ax.transAxes,
             fontsize=fontsize,
             bbox=dict(facecolor='w', edgecolor='w', alpha=0.8))
-        if toz:
-            ax.plot(e.coords[e.dims[1]], e.values[::eskip, :].T, 'k', lw=1)
+        if e is not None:
+            if toz:
+                ax.plot(e.coords[e.dims[1]], e.values[::eskip, :].T, 'k', lw=1)
+            else:
+                cs = e.plot.contour(
+                    ax=ax, levels=elevs, colors='k', linewidths=1)
+                plt.clabel(
+                    cs,
+                    # levels[1::2],  # label every second level
+                    inline=1,
+                    fmt='%1.1f',
+                    fontsize=12)
         if PV is not None:
             ax.contour(
                 PV.coords[PV.dims[1]],
