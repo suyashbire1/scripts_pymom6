@@ -56,8 +56,7 @@ class Background():
         self.zi = fh.variables['zi'][:]
         self.zl = fh.variables['zl'][:]
         self.z = kwargs.get('z', np.linspace(-3000, 0))
-        self.e = fh.variables['e'][:]
-        self.fh.close()
+        self.e = fh.variables['e']
 
         fhmean = mfdset(expt.fil2)
         self.emean = np.mean(fhmean.variables['e'][:], axis=0, keepdims=True)
