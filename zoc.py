@@ -343,11 +343,22 @@ def get_X2twa(fil1, fil2, **initializer):
     return X2twa
 
 
+def get_xdivep4pbdivep4(fil1, fil2, **initializer):
+    xdivep4 = get_xdivep4(fil1, fil2, **initializer)
+    bdivep4 = get_bdivep4(fil1, fil2, **initializer)
+    term = (xdivep4 + bdivep4).compute()
+    term.name = 'Pressure height correlation term'
+    term.math = r'$-\overline{\sigma^{\prime}m_{\tilde{x}}^{\prime}}$'
+    term.units = r'm$^2$s$^{-2}$'
+    return term
+
+
 def extract_twamomx_terms(fil1, fil2, **initializer):
 
     conventional_list = [
         get_advx, get_advy, get_advb, get_corpfum, get_xdivRS, get_xdivep4,
-        get_ydivep, get_bdivRS, get_bdivep4, get_X1twa, get_X2twa
+        get_ydivep, get_bdivRS, get_bdivep4, get_X1twa, get_X2twa,
+        get_xdivep4pbdivep4
     ]
 
     only = initializer.get('only', range(len(conventional_list)))

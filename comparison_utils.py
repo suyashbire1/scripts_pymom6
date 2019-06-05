@@ -75,6 +75,14 @@ def get_node_depth_v(expt,
     return core_depth
 
 
+def baroSF(expt):
+    with pym6.Dataset(expt.fil2) as ds:
+        psiB = ds.uh.read().nanmean(axis=0).reduce_(np.sum, axis=1).compute()
+        psiB.array = -np.cumsum(psiB.values, axis=2)
+        psiB = psiB.to_DataArray().squeeze()
+    return psiB / 1e6
+
+
 def MoverturnSF(expt):
     with pym6.Dataset(expt.fil2) as ds:
         moc = ds.vh.read().nanmean(axis=0).reduce_(np.sum, axis=3).compute()
@@ -210,12 +218,14 @@ def ZonalSectionofZOCbudget(expt, **initializer):
         else:
             b.values = np.cumsum(b.values, axis=1)
             b = b.tob(axis=1)
-            e = e.tob(axis=1)
+            if i == 0:
+                e = e.tob(axis=1)
         blist[i] = b.to_DataArray()
     blist_concat = xr.concat(blist, dim=pd.Index(namelist, name='Term'))
     blist_concat.name = 'Zonal momentum budget'
     e = e.to_DataArray()
-    return_dict = dict(blist_concat=blist_concat, blist=blist, e=e, swash=None)
+    return_dict = dict(
+        blist_concat=blist_concat, blist=blist, e=None, swash=None)
     return return_dict
 
 
@@ -238,7 +248,8 @@ def ZonalSectionofZOCcomponents(expt, **initializer):
         else:
             b.values = np.cumsum(b.values, axis=1)
             b = b.tob(axis=1)
-            e = e.tob(axis=1)
+            if i == 0:
+                e = e.tob(axis=1)
         blist[i] = b.to_DataArray()
     blist_concat = xr.concat(blist, dim=pd.Index(namelist, name='Term'))
     blist_concat.name = 'Zonal OC budget'
@@ -276,12 +287,14 @@ def MeridSectionofMOCbudget(expt, **initializer):
         else:
             b.values = np.cumsum(b.values, axis=1)
             b = b.tob(axis=1)
-            e = e.tob(axis=1)
+            if i == 0:
+                e = e.tob(axis=1)
         blist[i] = b.to_DataArray()
     blist_concat = xr.concat(blist, dim=pd.Index(namelist, name='Term'))
     blist_concat.name = 'Merid momentum budget'
     e = e.to_DataArray()
-    return_dict = dict(blist_concat=blist_concat, blist=blist, e=e, swash=None)
+    return_dict = dict(
+        blist_concat=blist_concat, blist=blist, e=None, swash=None)
     return return_dict
 
 
@@ -376,7 +389,9 @@ def overturnSwash(expt, axis=3):
             x=slice(10, 11), z=slice(0, 1), y=slice(0, 1)).read().compute()
         swash = ds.islayerdeep.read().compute()
         swash = ((-swash + deeplay.values) * 100 / deeplay.values).compute()
-        swash = swash.nanmean(axis=axis).tob(axis=1).to_DataArray().squeeze()
+        if axis:
+            swash = swash.nanmean(axis=axis)
+        swash = swash.tob(axis=1).to_DataArray().squeeze()
     return swash
 
 

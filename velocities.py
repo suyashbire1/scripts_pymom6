@@ -252,33 +252,31 @@ def plot_velocities(dict_or_func, fil1, fil2, **initializer):
     figsize = initializer.get('figsize', (5, 5))
     fig, ax = plt.subplots(3, 3, sharex=True, sharey=True, figsize=figsize)
 
-    plot_three_panels(
-        ['u', 'ubolus', 'ur'],
-        ax[0, :].ravel().tolist(),
-        string.ascii_lowercase[:3],
-        returned_dict,
-        fil2,
-        vmin=-0.06,
-        vmax=0.06,
-        **initializer)
-    plot_three_panels(
-        ['v', 'vbolus', 'vr'],
-        ax[1, :].ravel().tolist(),
-        string.ascii_lowercase[3:6],
-        returned_dict,
-        fil2,
-        vmin=-0.6,
-        vmax=0.6,
-        **initializer)
-    plot_three_panels(
-        ['wd', 'adiaw', 'whash'],
-        ax[2, :].ravel().tolist(),
-        string.ascii_lowercase[6:9],
-        returned_dict,
-        fil2,
-        vmin=-4e-4,
-        vmax=4e-4,
-        **initializer)
+    plot_three_panels(['u', 'ubolus', 'ur'],
+                      ax[0, :].ravel().tolist(),
+                      string.ascii_lowercase[:3],
+                      returned_dict,
+                      fil2,
+                      vmin=-0.1,
+                      vmax=0.1,
+                      **initializer)
+    plot_three_panels(['v', 'vbolus', 'vr'],
+                      ax[1, :].ravel().tolist(),
+                      string.ascii_lowercase[3:6],
+                      returned_dict,
+                      fil2,
+                      vmin=-0.8,
+                      vmax=0.8,
+                      **initializer)
+    plot_three_panels(['wd', 'adiaw', 'whash'],
+                      ax[2, :].ravel().tolist(),
+                      string.ascii_lowercase[6:9],
+                      returned_dict,
+                      fil2,
+                      vmin=-4e-4,
+                      vmax=4e-4,
+                      **initializer)
+    ax.ravel()[0].set_ylim((initializer.get('z', [-3000, -3000])[0], 0))
     return fig
 
 

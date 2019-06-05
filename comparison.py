@@ -29,7 +29,8 @@ class Experiment():
                  dt=10,
                  tsurf=20,
                  tbot=5,
-                 dabyss=1500):
+                 dabyss=1500,
+                 kd=1e-4):
         """Defines a MOM6 experiment
 
         :param name: Name of the experiment. This will appear on the
@@ -81,9 +82,12 @@ class Experiment():
         alpha = 2e-3
         self.dt = dt
         self.db = alpha * self.dt
+        self.tbot = tbot
+        self.dabyss = dabyss
         self.nsq = alpha * (tsurf - tbot) / dabyss
         omega = 2 * np.pi * (1 / 24 / 3600 + 1 / 24 / 3600 / 365)
         self.fn = 2 * omega * np.sin(np.radians(yn))
+        self.kd = kd
 
 
 class ExperimentsList():
@@ -95,11 +99,13 @@ class ExperimentsList():
     def plot2d(self,
                func,
                *func_args,
+               pcolormesh=True,
                contourf=True,
                contours=False,
                fig=None,
                plot_kwargs={},
                ctr_kwargs={},
+               cbar_kwargs={},
                **func_kwargs):
         """Generates 2D plots from a list of experiments and arranges
                them on a subplot
@@ -124,13 +130,17 @@ class ExperimentsList():
         for exp, axc in zip(self.list_, ax[:len(self.list_)]):
             arg = func(exp, *func_args, **func_kwargs)
             if contourf:
-                im = arg.plot.pcolormesh(ax=axc, **plot_kwargs)
+                if pcolormesh:
+                    im = arg.plot.pcolormesh(ax=axc, **plot_kwargs)
+                else:
+                    im = arg.plot.contourf(ax=axc, **plot_kwargs)
             if contours:
                 arg.squeeze().plot.contour(
                     ax=axc, add_labels=False, **ctr_kwargs)
             axc.set_title(exp.name)
+        fig.tight_layout()
         if contourf and plot_kwargs.get('add_colorbar', True) is False:
-            fig.colorbar(im, ax=ax)
+            fig.colorbar(im, ax=ax, **cbar_kwargs)
         return fig
 
     def plot1d(self, func, *func_args, ax=None, plot_kwargs={}, **func_kwargs):
@@ -201,6 +211,30 @@ decdt = Experiment(
     ylimsp=(28, 50),
     ylimsm=(30, 50),
     dt=8)
+lmiddt = Experiment(
+    r'$\Delta$T = 9$^{\circ}$C',
+    '../bfb3_fixed_sponge_lmiddt/',
+    73,
+    74,
+    yn=45,
+    z1=-200,
+    z2=-1100,
+    ylimsp=(28, 50),
+    ylimsm=(30, 50),
+    dt=9)
+
+hmiddt = Experiment(
+    r'$\Delta$T = 11$^{\circ}$C',
+    '../bfb3_fixed_sponge_hmiddt/',
+    69,
+    73,
+    yn=55,
+    z1=-200,
+    z2=-1300,
+    ylimsp=(25, 55),
+    ylimsm=(25, 52),
+    percp=2,
+    dt=11)
 incdt = Experiment(
     r'$\Delta$T = 12$^{\circ}$C',
     '../bfb3_fixed_sponge_incdt/',
@@ -214,13 +248,37 @@ incdt = Experiment(
     percp=2,
     dt=12)
 deckd = Experiment(
-    'KD = 5e-5', '../bfb3_fixed_sponge_deckd/', 43, 49, z1=-200, z2=-1300)
+    'KD = 5e-5',
+    '../bfb3_fixed_sponge_deckd/',
+    43,
+    49,
+    z1=-200,
+    z2=-1300,
+    kd=5e-5)
 decdeckd = Experiment(
-    'KD = 2.5e-5', '../bfb3_fixed_sponge_decdeckd/', 57, 64, z1=-200, z2=-1300)
+    'KD = 2.5e-5',
+    '../bfb3_fixed_sponge_decdeckd/',
+    57,
+    64,
+    z1=-200,
+    z2=-1300,
+    kd=2.5e-5)
 incdepth = Experiment(
-    'incdepth', '../bfb3_fixed_sponge_lowNsq/', 32, 40, z1=-200, z2=-1300)
+    '$D_{\mathrm{abyss}}=1750\,\mathrm{m}$',
+    '../bfb3_fixed_sponge_lowNsq/',
+    32,
+    40,
+    z1=-200,
+    z2=-1300,
+    dabyss=1750)
 decdepth = Experiment(
-    'decdepth', '../bfb3_fixed_sponge_highNsq/', 33, 40, z1=-200, z2=-1100)
+    '$D_{\mathrm{abyss}}=1250\,\mathrm{m}$',
+    '../bfb3_fixed_sponge_highNsq/',
+    33,
+    40,
+    z1=-200,
+    z2=-1100,
+    dabyss=1250)
 fplane = Experiment(
     'f-plane', '../bfb3_fixed_sponge_fplane/', 84, 90, z1=-200, z2=-1300)
 lowflc = Experiment(
@@ -260,3 +318,7 @@ highnsq = Experiment(
     86,
     92,
     tbot=4)
+toponowind = Experiment(
+    r'topo', '../bfb3_fixed_sponge_withtopo_nowind_fixedtopo/', 27, 34)
+topowind = Experiment(r'topowind', '../bfb3_fixed_sponge_withtopo_wind/', 45,
+                      51)

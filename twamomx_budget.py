@@ -385,8 +385,8 @@ def get_Bx(fil1, fil2, **initializer):
 def extract_twamomx_terms(fil1, fil2, **initializer):
 
     conventional_list = [
-        get_advx, get_advy, get_advb, get_cor, get_pfum, get_xdivep,
-        get_ydivep, get_bdivep, get_X1twa, get_X2twa
+        get_advx, get_advy, get_advb, get_cor, get_pfum, get_xdivep4,
+        get_ydivep, get_bdivep4, get_X1twa, get_X2twa
     ]
 
     withPVflux_list = [
@@ -429,7 +429,7 @@ def extract_budget(fil1, fil2, fil3=None, **initializer):
         initializer.pop('z')
     initializer['final_loc'] = 'ui'
     with pym6.Dataset(fil2, **initializer) as ds:
-        e = ds.e.xep().zep().read().move_to('u').nanmean(axis=(0, 2)).compute()
+        e = ds.e.xep().read().move_to('u').nanmean((0, meanax)).compute()
     initializer['final_loc'] = 'ul'
     if fil3 is not None:
         with pym6.Dataset(fil3) as ds:
@@ -443,11 +443,16 @@ def extract_budget(fil1, fil2, fil3=None, **initializer):
             swash.indices = uv.indices
             swash.dim_arrays = uv.dim_arrays
             swash = swash.ysm().read().move_to('u').nanmean(
-                axis=(0, 2)).compute()
+                (0, meanax)).compute()
             swash = ((-swash + islaydeepmax) / islaydeepmax * 100).compute()
             if z is not None:
                 swash = swash.toz(z, e)
-            swash = swash.tokm(3).to_DataArray()
+            if initializer.get('tokm', True):
+                if meanax == 2:
+                    swash = swash.tokm(3)
+                elif meanax == 3:
+                    swash = swash.tokm(2)
+            swash = swash.to_DataArray()
     else:
         swash = None
     blist = extract_twamomx_terms(fil1, fil2, **initializer)
@@ -457,10 +462,20 @@ def extract_budget(fil1, fil2, fil3=None, **initializer):
         b = b.nanmean(axis=meanax)
         if z is not None:
             b = b.toz(z, e)
-        blist[i] = b.tokm(3).to_DataArray()
+        if initializer.get('tokm', True):
+            if meanax == 2:
+                b = b.tokm(3)
+            elif meanax == 3:
+                b = b.tokm(2)
+        blist[i] = b.to_DataArray()
     blist_concat = xr.concat(blist, dim=pd.Index(namelist, name='Term'))
     blist_concat.name = 'Zonal Momentum Budget'
-    e = e.tokm(3).to_DataArray()
+    if initializer.get('tokm', True):
+        if meanax == 2:
+            e = e.tokm(3)
+        elif meanax == 3:
+            e = e.tokm(2)
+    e = e.to_DataArray()
     return_dict = dict(
         blist_concat=blist_concat, blist=blist, e=e, swash=swash)
     return return_dict

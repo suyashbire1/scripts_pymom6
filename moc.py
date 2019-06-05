@@ -367,11 +367,22 @@ def get_Y2twa(fil1, fil2, **initializer):
     return Y2twa
 
 
+def get_ydivep4pbdivep4(fil1, fil2, **initializer):
+    ydivep4 = get_ydivep4(fil1, fil2, **initializer)
+    bdivep4 = get_bdivep4(fil1, fil2, **initializer)
+    term = (ydivep4 + bdivep4).compute()
+    term.name = 'Pressure height correlation term'
+    term.math = r'$-\overline{\sigma^{\prime}m_{\tilde{y}}^{\prime}}$'
+    term.units = r'm$^2$s$^{-2}$'
+    return term
+
+
 def extract_twamomy_terms(fil1, fil2, **initializer):
 
     conventional_list = [
         get_advx, get_advy, get_advb, get_corpfvm, get_xdivep, get_ydivRS,
-        get_ydivep4, get_bdivRS, get_bdivep4, get_Y1twa, get_Y2twa
+        get_ydivep4, get_bdivRS, get_bdivep4, get_Y1twa, get_Y2twa,
+        get_ydivep4pbdivep4
     ]
 
     onlyEPfluxes_list = [get_xdivep, get_bdivep4]

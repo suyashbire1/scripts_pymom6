@@ -313,7 +313,7 @@ def get_divep(fil1, fil2, **initializer):
     ydivep = get_ydivep(fil1, fil2, **initializer)
     bdivep = get_bdivep(fil1, fil2, **initializer)
     divep = (xdivep + ydivep + bdivep).compute()
-    divep.math = r"$\vec{\nabla} \cdot \vec{E^v}$"
+    divep.math = r"$-\vec{\nabla} \cdot \vec{E^v}$"
     divep.units = r'ms$^{-2}$'
     divep.name = r'Div EP flux'
     return divep
@@ -441,6 +441,36 @@ def get_fdflux(fil1, fil2, **initializer):
     return fd
 
 
+def get_epe_flux(fil1, fil2, **initializer):
+    initializer['final_loc'] = 'vl'
+    h = get_h(fil1, fil2, **initializer)
+    with pym6.Dataset(fil1, **initializer) as ds1, pym6.Dataset(
+            fil2, **initializer) as ds2:
+        db = np.diff(ds1.zl)[0] * 9.8 / 1000
+        esq = ds1.esq.yep().read().nanmean(axis=0)
+        e = ds2.e.yep().zep().read().nanmean(axis=0).move_to('l')**2
+        e = e.compute(check_loc=False)
+        edlsqm = esq - e
+        edlsqm = edlsqm.move_to('v').compute()
+        epeflux = (edlsqm / h * 0.5 * db).compute()
+        ex = (ds2.e.final_loc('vl').zep().yep().xsm().xep().read().nanmean(
+            axis=0).dbyd(3).move_to('h').move_to('v').move_to('l').compute())
+        epeflux_ex = (ex * epeflux).compute()
+    return epeflux, epeflux_ex
+
+
+def get_eprimesq(fil1, fil2, **initializer):
+    #initializer['final_loc'] = 'vl'
+    with pym6.Dataset(fil1, **initializer) as ds1, pym6.Dataset(
+            fil2, **initializer) as ds2:
+        esq = ds1.esq.read().nanmean(axis=0)
+        e = ds2.e.zep().read().nanmean(axis=0).move_to('l')**2
+        e = e.compute(check_loc=False)
+        edlsqm = esq - e
+        edlsqm = edlsqm.compute()
+    return edlsqm
+
+
 def get_pvfluxduetouv(fil1, fil2, **initializer):
     uv = -get_xdivep(fil1, fil2, **initializer)
     uv = uv.compute()
@@ -478,7 +508,7 @@ def extract_twamomy_terms(fil1, fil2, **initializer):
 
     conventional_list = [
         get_advx, get_advy, get_advb, get_cor, get_pfvm, get_xdivep,
-        get_ydivep, get_bdivep, get_Y1twa, get_Y2twa
+        get_ydivep, get_bdivep4, get_Y1twa, get_Y2twa
     ]
 
     withPVflux_list = [
@@ -534,7 +564,7 @@ def extract_budget(fil1, fil2, fil3=None, **initializer):
         initializer.pop('z')
     initializer['final_loc'] = 'vi'
     with pym6.Dataset(fil2, **initializer) as ds:
-        e = ds.e.yep().zep().read().move_to('v').nanmean(axis=(0, 2)).compute()
+        e = ds.e.yep().read().move_to('v').nanmean((0, meanax)).compute()
     initializer['final_loc'] = 'vl'
     if fil3 is not None:
         with pym6.Dataset(fil3) as ds:
@@ -547,12 +577,17 @@ def extract_budget(fil1, fil2, fil3=None, **initializer):
             uv = ds2.uv
             swash.indices = uv.indices
             swash.dim_arrays = uv.dim_arrays
-            swash = swash.xsm().read().move_to('v').nanmean(axis=(
-                0, 2)).compute()
+            swash = swash.xsm().read().move_to('v').nanmean(
+                (0, meanax)).compute()
             swash = ((-swash + islaydeepmax) / islaydeepmax * 100).compute()
             if z is not None:
                 swash = swash.toz(z, e)
-            swash = swash.tokm(3).to_DataArray()
+            if initializer.get('tokm', True):
+                if meanax == 2:
+                    swash = swash.tokm(3)
+                elif meanax == 3:
+                    swash = swash.tokm(2)
+            swash = swash.to_DataArray()
     else:
         swash = None
     blist = extract_twamomy_terms(fil1, fil2, **initializer)
@@ -562,10 +597,20 @@ def extract_budget(fil1, fil2, fil3=None, **initializer):
         b = b.nanmean(axis=meanax)
         if z is not None:
             b = b.toz(z, e)
-        blist[i] = b.tokm(3).to_DataArray()
+        if initializer.get('tokm', True):
+            if meanax == 2:
+                b = b.tokm(3)
+            elif meanax == 3:
+                b = b.tokm(2)
+        blist[i] = b.to_DataArray()
     blist_concat = xr.concat(blist, dim=pd.Index(namelist, name='Term'))
     blist_concat.name = 'Merid momentum budget'
-    e = e.tokm(3).to_DataArray()
+    if initializer.get('tokm', True):
+        if meanax == 2:
+            e = e.tokm(3)
+        elif meanax == 3:
+            e = e.tokm(2)
+    e = e.to_DataArray()
     return_dict = dict(
         blist_concat=blist_concat, blist=blist, e=e, swash=swash)
     return return_dict

@@ -1,7 +1,9 @@
 import pymom6.pymom6 as pym6
+import numpy as np
 import importlib
 import matplotlib.pyplot as plt
 importlib.reload(pym6)
+import sys
 
 
 def get_zonal_zeta_adv(fil1, **initializer):
@@ -189,3 +191,92 @@ def plot_velocities(dict_or_func, fil1, fil2, **initializer):
     plot_one_panel('v', ax[1], 'b', returned_dict, fil1, fil2, **initializer)
     plot_one_panel('w', ax[2], 'c', returned_dict, fil1, fil2, **initializer)
     return fig
+
+
+def get_v_accurate(fil1, **initializer):
+    with pym6.Dataset(fil1, **initializer) as ds1:
+        z = initializer['ev']
+        dz = initializer['dzv']
+        nt = ds1.Time.size
+        e = ds1.e.final_loc('vi').isel(
+            t=slice(0, 1)).yep().read().move_to('v').compute()
+        v = ds1.v.isel(t=slice(0, 1)).read().compute()
+        h = (-ds1.e.final_loc('vl').isel(
+            t=slice(0, 1)).yep().zep().read().move_to('v').np_ops(
+                np.diff, axis=1, sets_vloc='l')).compute()
+        transport = (v * h).compute()
+        temp = transport.values.copy()
+        shape = list(transport.shape)
+        shape[1] += 1
+        transport.values = np.zeros(shape)
+        transport.values[:, 1:] = np.cumsum(temp, axis=1)
+        v_new = (transport.toz(z, e, linear=True).np_ops(np.diff, axis=1) / dz
+                 / nt).compute()
+        v_new.name = 'Mean merid vel'
+        v_new.math = r'$\bar{v}^z$'
+
+        print('Getting v...')
+        for i in range(1, nt):
+            e = ds1.e.final_loc('vi').isel(
+                t=slice(i, i + 1)).yep().read().move_to('v').compute()
+            v = ds1.v.isel(t=slice(i, i + 1)).read().compute()
+            h = (-ds1.e.final_loc('vl').isel(
+                t=slice(i, i + 1)).yep().zep().read().move_to('v').np_ops(
+                    np.diff, axis=1, sets_vloc='l')).compute()
+            transport = (v * h).compute()
+            temp = transport.values.copy()
+            shape = list(transport.shape)
+            shape[1] += 1
+            transport.values = np.zeros(shape)
+            transport.values[:, 1:] = np.cumsum(temp, axis=1)
+            v_new1 = (transport.toz(z, e, linear=True).np_ops(np.diff, axis=1)
+                      / dz / nt).compute()
+            v_new.values += v_new1.values
+            sys.stdout.write(f"\r{i/nt*100:.2f}")
+            sys.stdout.flush()
+        return v_new
+
+
+def get_u_accurate(fil1, **initializer):
+    with pym6.Dataset(fil1, **initializer) as ds1:
+        z = initializer['eu']
+        dz = initializer['dzu']
+        nt = ds1.Time.size
+
+        e = ds1.e.final_loc('ui').isel(
+            t=slice(0, 1)).xep().read().move_to('u').compute()
+        u = ds1.u.isel(t=slice(0, 1)).read().compute()
+        h = (-ds1.e.final_loc('ul').isel(
+            t=slice(0, 1)).xep().zep().read().move_to('u').np_ops(
+                np.diff, axis=1, sets_vloc='l')).compute()
+        transport = (u * h).compute()
+        temp = transport.values.copy()
+        shape = list(transport.shape)
+        shape[1] += 1
+        transport.values = np.zeros(shape)
+        transport.values[:, 1:] = np.cumsum(temp, axis=1)
+        u_new = (transport.toz(z, e, linear=True).np_ops(np.diff, axis=1) / dz
+                 / nt).compute()
+        u_new.name = 'Mean zonal vel'
+        u_new.math = r'$\bar{u}^z$'
+        print('Getting u...')
+        for i in range(1, nt):
+
+            e = ds1.e.final_loc('ui').isel(
+                t=slice(i, i + 1)).xep().read().move_to('u').compute()
+            u = ds1.u.isel(t=slice(i, i + 1)).read().compute()
+            h = (-ds1.e.final_loc('ul').isel(
+                t=slice(i, i + 1)).xep().zep().read().move_to('u').np_ops(
+                    np.diff, axis=1, sets_vloc='l')).compute()
+            transport = (u * h).compute()
+            temp = transport.values.copy()
+            shape = list(transport.shape)
+            shape[1] += 1
+            transport.values = np.zeros(shape)
+            transport.values[:, 1:] = np.cumsum(temp, axis=1)
+            u_new1 = (transport.toz(z, e, linear=True).np_ops(np.diff, axis=1)
+                      / dz / nt).compute()
+            u_new.values += u_new1.values
+            sys.stdout.write(f"\r{i/nt*100:.2f}")
+            sys.stdout.flush()
+        return u_new

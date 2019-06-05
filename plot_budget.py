@@ -17,6 +17,8 @@ def plot_budget(func_or_dict, fil1, fil2, **initializer):
     elevs = initializer.get(
         'elevs', [-2500, -1500, -1000, -800, -500, -300, -200, -100, -50, 0])
     toz = initializer.get('toz', True)
+    add_colorbar = initializer.get('add_colorbar', True)
+    cbar_kwargs = initializer.get('cbar_kwargs', {})
     interpolation = initializer.get('interpolation', 'none')
     if callable(func_or_dict):
         returned_dict = func_or_dict(fil1, fil2, **initializer)
@@ -46,7 +48,9 @@ def plot_budget(func_or_dict, fil1, fil2, **initializer):
         vmax=vmax,
         cmap='RdBu_r',
         col='Term',
-        col_wrap=col_wrap)
+        col_wrap=col_wrap,
+        add_colorbar=add_colorbar,
+        cbar_kwargs=cbar_kwargs)
     name = initializer.get('name', True)
     for i, b in enumerate(blist):
         ax = fg.axes.flat[i]
